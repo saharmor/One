@@ -1,8 +1,9 @@
+import time
 from typing import Optional
 from bs4 import BeautifulSoup
 
 import requests
-from db_utils import NO_CITATIONS_INDICATOR, connect_to_db, get_authors, get_paper_from_db, get_unprocessed_papers, insert_author_to_db, insert_paper_to_db, link_paper_author, update_failed_paper_citations_in_db, update_paper_citations_in_db
+from db_utils import connect_to_db, get_authors, get_paper_from_db, get_unprocessed_papers, insert_author_to_db, insert_paper_to_db, link_paper_author, update_failed_paper_citations_in_db, update_paper_citations_in_db
 
 from load_aitidbits import load_ai_tidbits
 
@@ -142,19 +143,30 @@ def update_paper_citations():
             citation_count = get_citations_for_each_paper(paper_id)
             update_paper_citations_in_db(cursor, paper_id, citation_count)
             conn.commit()
-        except Exception as e:
+        except NoCitationException as e:
             print(f"Failed to update citations for paper {paper_id}: {e}")
             update_failed_paper_citations_in_db(cursor, paper_id)
+        except Exception as e:
+            print(f"Error while fetching citations for paper {paper_id}: {e}")
 
     conn.close()
 
+class NoCitationException(Exception):
+    pass
+
 def get_citations_for_each_paper(paper_id: str):
     url = f'https://scholar.google.com/scholar_lookup?arxiv_id={paper_id}'
+    from fake_useragent import UserAgent
+
+    user_agent = UserAgent()
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        'User-Agent': user_agent.random
     }
     
     response = requests.get(url, headers=headers)
+
+    time.sleep(2)  # adding delay of 2 seconds before making a request
+
     if response.status_code != 200:
         raise Exception(f'Failed to retrieve page: {response.status_code}')
     
@@ -162,7 +174,7 @@ def get_citations_for_each_paper(paper_id: str):
     citation_element = soup.find('div', {'class': 'gs_ri'})
     
     if citation_element is None:
-        raise Exception('Failed to find citation element')
+        raise NoCitationException('Failed to find citation element')
     
     citation_text = citation_element.find('div', {'class': 'gs_fl'}).text
     citations = [int(s) for s in citation_text.split() if s.isdigit()]
@@ -207,9 +219,9 @@ def load_papers_data():
 if __name__ == '__main__':
     # initialize_db()
     
-    authors, processed_papers_count = load_papers_data()
-    print('\n\n')
-    print_authors_stats(authors, processed_papers_count)
+    # authors, processed_papers_count = load_papers_data()
+    # print('\n\n')
+    # print_authors_stats(authors, processed_papers_count)
 
     update_paper_citations()
     # print(get_citations_for_each_paper('2303.13375'))

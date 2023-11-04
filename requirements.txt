@@ -2,3 +2,4 @@ openpyxl
 pandas
 arxiv
 bs4
+fake-useragent
