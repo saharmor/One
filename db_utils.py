@@ -2,9 +2,10 @@ import sqlite3
 
 NO_CITATIONS_INDICATOR = -1
 FAILED_FETCH_CITATIONS_INDICATOR = -2
+DB_NAME = 'papers.db'
 
-def initialize_db(db_name='papers.db'):
-    conn = sqlite3.connect(db_name)
+def initialize_db():
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     # Create Papers table
@@ -40,10 +41,8 @@ def initialize_db(db_name='papers.db'):
     conn.commit()
     conn.close()
 
-DB_NAME = 'papers.db'
-
-def connect_to_db(db_name=DB_NAME):
-    return sqlite3.connect(db_name)
+def connect_to_db():
+    return sqlite3.connect(DB_NAME)
 
 def get_paper_from_db(cursor, paper_id):
     cursor.execute('SELECT * FROM Papers WHERE paper_id = ?', (paper_id,))

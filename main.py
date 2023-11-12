@@ -127,10 +127,51 @@ def get_paper_data(paper_url: str) -> Optional[PaperAuthors]:
     load_arxiv_data(paper_id)
     return get_paper_data_from_db(paper_id)
 
-def print_authors_stats(authors, processed_papers_count):
-    for author in authors:
-        print(f"{author} has {len(authors[author])} papers")
-    print(f"\n\nAuthors count {len(authors)} from {processed_papers_count} papers")
+def print_top_authors_with_papers():
+    # Connect to the SQLite database
+    conn = connect_to_db()
+    cursor = conn.cursor()
+
+    # Query to find top 20 authors by citation count
+    author_citations_query = '''
+    SELECT Authors.fullname, SUM(Papers.citations) as total_citations
+    FROM Authors
+    JOIN PaperAuthors ON Authors.id = PaperAuthors.author_id
+    JOIN Papers ON PaperAuthors.paper_id = Papers.paper_id
+    GROUP BY Authors.fullname
+    ORDER BY total_citations DESC
+    LIMIT 20
+    '''
+
+    cursor.execute(author_citations_query)
+
+    # Fetch the top 20 authors and their total citations
+    top_authors = cursor.fetchall()
+
+    # Iterate over each author to print their papers
+    for author in top_authors:
+        fullname, total_citations = author
+        print(f"{fullname}, {total_citations} citations")
+
+        # Query to find the papers for the current author
+        papers_query = '''
+        SELECT title
+        FROM Papers
+        JOIN PaperAuthors ON Papers.paper_id = PaperAuthors.paper_id
+        JOIN Authors ON PaperAuthors.author_id = Authors.id
+        WHERE Authors.fullname = ?
+        '''
+        cursor.execute(papers_query, (fullname,))
+
+        # Fetch and print the papers for the author
+        papers = cursor.fetchall()
+        for paper in papers:
+            print(paper[0])  # Assuming each `paper` is a tuple where the first item is the title
+        print()  # Print a newline for better readability between authors
+
+    # Close the connection to the database
+    conn.close()
+
 
 def update_paper_citations():
     conn = connect_to_db()
@@ -223,5 +264,6 @@ if __name__ == '__main__':
     # print('\n\n')
     # print_authors_stats(authors, processed_papers_count)
 
-    update_paper_citations()
-    # print(get_citations_for_each_paper('2303.13375'))
+    # update_paper_citations()
+    print_top_authors_with_papers()
+
